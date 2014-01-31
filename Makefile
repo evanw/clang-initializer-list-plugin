@@ -1,8 +1,9 @@
-ROOT = $(shell echo ~/.emsdk_portable/clang/3.2_64bit)
+CLANG_ROOT = $(shell echo ~/.emsdk_portable/clang/3.2_64bit)
+EMSCRIPTEN_ROOT = $(shell echo ~/.emsdk_portable/emscripten/1.7.8)
 
 SOURCE = plugin.cpp
 TARGET = plugin.dylib
-TEST = hello.cpp
+TEST = demo.cpp
 
 CFLAGS += -fno-rtti
 CFLAGS += -Wall
@@ -13,13 +14,14 @@ CFLAGS += -D__STDC_CONSTANT_MACROS
 CFLAGS += -fstrict-aliasing
 CFLAGS += -fPIC
 CFLAGS += -dynamiclib
-CFLAGS += -I$(ROOT)/include
-CFLAGS += -L$(ROOT)/lib
+CFLAGS += -I$(CLANG_ROOT)/include
+CFLAGS += -L$(CLANG_ROOT)/lib
 CFLAGS += -Wl,-headerpad_max_install_names
 CFLAGS += -Wl,-flat_namespace
 CFLAGS += -Wl,-undefined
 CFLAGS += -Wl,suppress
 CFLAGS += -stdlib=libstdc++
+CFLAGS += -exported_symbols_list exports.txt
 
 LIBS += -lLLVMSupport
 LIBS += -lLLVMMC
@@ -38,8 +40,16 @@ LIBS += -lclangParse
 LIBS += -lclangSema
 LIBS += -lclangSerialization
 
+TFLAGS += -isystem $(EMSCRIPTEN_ROOT)/system/include/compat
+TFLAGS += -isystem $(EMSCRIPTEN_ROOT)/system/include/libc
+TFLAGS += -isystem $(EMSCRIPTEN_ROOT)/system/include/libcxx
+TFLAGS += -D __EMSCRIPTEN__
+TFLAGS += -U __APPLE__
+TFLAGS += -fsyntax-only
+TFLAGS += -triple le32-unknown-nacl
 TFLAGS += -load $(TARGET)
-TFLAGS += -plugin print-fns
+TFLAGS += -plugin check-initializer-lists
+TFLAGS += -fcolor-diagnostics
 
 default: clean build test
 
@@ -47,7 +57,7 @@ build:
 	cc $(CFLAGS) $(LIBS) $(SOURCE) -o $(TARGET)
 
 test:
-	$(ROOT)/bin/clang $(TFLAGS:%=-Xclang %) -fsyntax-only $(TEST)
+	$(CLANG_ROOT)/bin/clang -cc1 $(TFLAGS) $(TEST)
 
 clean:
 	rm -f $(TARGET)
