@@ -33,7 +33,13 @@ namespace NS2 {
 
 namespace NS3 {
   struct Foo {
-    Foo() : x() { y = x; }
+    Foo() { x = y = 0; }
     int x, y;
+  };
+
+  struct Bar {
+    Bar() : Bar(1, 2) {}
+    Bar(int z, int w) : z(z) {} // missing w
+    int z, w;
   };
 }

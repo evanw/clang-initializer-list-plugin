@@ -57,6 +57,7 @@ TFLAGS += -triple le32-unknown-nacl
 TFLAGS += -load $(TARGET)
 TFLAGS += -plugin check-initializer-lists
 TFLAGS += -fcolor-diagnostics
+TFLAGS += -std=c++11
 
 default: clean build test
 

@@ -19,11 +19,16 @@ namespace {
     }
 
     void VisitBinAssign(BinaryOperator *expr) {
+      // Record the variables for assignments of the form "this->x = ...;"
       if (MemberExpr *member = dyn_cast<MemberExpr>(expr->getLHS())) {
         if (isa<CXXThisExpr>(member->getBase())) {
           fields.insert(member->getMemberDecl());
         }
       }
+
+      // There may also be assignments inside the child expressions, especially those of the form "this->x = this->y = ...;"
+      Visit(expr->getLHS());
+      Visit(expr->getRHS());
     }
   };
 
@@ -45,6 +50,11 @@ namespace {
       // Only check the constructor if it has a body
       const FunctionDecl *definitionWithBody = NULL;
       if (!constructor->hasBody(definitionWithBody) || definitionWithBody != constructor) {
+        return true;
+      }
+
+      // Ignore delegating constructors since it's assumed the other constructor works
+      if (constructor->isDelegatingConstructor()) {
         return true;
       }
 
