@@ -7,11 +7,31 @@
 using namespace clang;
 
 namespace {
-  struct CustomVisitor : RecursiveASTVisitor<CustomVisitor> {
+  struct CustomStmtVisitor : StmtVisitor<CustomStmtVisitor> {
+    std::set<ValueDecl *> fields;
+
+    void VisitStmt(Stmt *statement) {
+      for (Stmt::child_range child = statement->children(); child; child++) {
+        if (*child) {
+          Visit(*child);
+        }
+      }
+    }
+
+    void VisitBinAssign(BinaryOperator *expr) {
+      if (MemberExpr *member = dyn_cast<MemberExpr>(expr->getLHS())) {
+        if (isa<CXXThisExpr>(member->getBase())) {
+          fields.insert(member->getMemberDecl());
+        }
+      }
+    }
+  };
+
+  struct CustomDeclVisitor : RecursiveASTVisitor<CustomDeclVisitor> {
     CompilerInstance &instance;
     unsigned int customWarning;
 
-    CustomVisitor(CompilerInstance &instance) : instance(instance) {
+    CustomDeclVisitor(CompilerInstance &instance) : instance(instance) {
       customWarning = instance.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Warning, "constructor for %0 is missing initializer for member %1");
     }
 
@@ -28,6 +48,10 @@ namespace {
         return true;
       }
 
+      // Scan the body for assignments
+      CustomStmtVisitor visitor;
+      visitor.Visit(constructor->getBody());
+
       // Check each field in the enclosing record
       const CXXRecordDecl *record = constructor->getParent();
       for (CXXRecordDecl::field_iterator field = record->field_begin(), fieldEnd = record->field_end(); field != fieldEnd; field++) {
@@ -40,6 +64,11 @@ namespace {
         // Ignore fields with non-POD record types
         const CXXRecordDecl *type = field->getType()->getAsCXXRecordDecl();
         if (type && !type->isPOD()) {
+          continue;
+        }
+
+        // Ignore fields that are assigned to in the constructor body
+        if (visitor.fields.count(*field)) {
           continue;
         }
 
@@ -68,7 +97,7 @@ namespace {
     }
 
     virtual void HandleTranslationUnit(clang::ASTContext &context) {
-      CustomVisitor(instance).TraverseDecl(context.getTranslationUnitDecl());
+      CustomDeclVisitor(instance).TraverseDecl(context.getTranslationUnitDecl());
     }
   };
 

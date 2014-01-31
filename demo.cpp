@@ -3,12 +3,12 @@
 
 namespace NS1 {
   struct Foo {
-    Foo() : x() {}
+    Foo() : x() {} // missing x
     int x, y;
   };
 
   struct Bar : Foo {
-    Bar() : w() {}
+    Bar() : w() {} // missing w
     int z, w;
   };
 }
@@ -19,7 +19,7 @@ namespace NS2 {
     int x, y;
   };
 
-  Foo::Foo() {}
+  Foo::Foo() {} // missing x and y
 
   struct Bar : Foo {
     Bar();
@@ -28,5 +28,12 @@ namespace NS2 {
     int w;
   };
 
-  Bar::Bar() {}
+  Bar::Bar() {} // missing z and w
+}
+
+namespace NS3 {
+  struct Foo {
+    Foo() : x() { y = x; }
+    int x, y;
+  };
 }
