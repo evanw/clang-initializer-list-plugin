@@ -1,3 +1,10 @@
+# Right now this is set up for emscripten but should be pretty easy to change
+# to work with the default clang installations. The easiest way to use this
+# with emscripten itself is to set the EMMAKEN_CFLAGS environment variable
+# before calling emcc:
+#
+#   EMMAKEN_CFLAGS='-Xclang -load -Xclang plugin.dylib -Xclang -plugin -Xclang check-initializer-lists' emcc ...
+#
 CLANG_ROOT = $(shell echo ~/.emsdk_portable/clang/3.2_64bit)
 EMSCRIPTEN_ROOT = $(shell echo ~/.emsdk_portable/emscripten/1.7.8)
 
