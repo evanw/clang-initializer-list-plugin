@@ -37,7 +37,8 @@ namespace {
     unsigned int customWarning;
 
     CustomDeclVisitor(CompilerInstance &instance) : instance(instance) {
-      customWarning = instance.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Warning, "constructor for %0 is missing initializer for member %1");
+      customWarning = instance.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Warning,
+        "constructor for %0 is missing %plural{1:an initializer for member|:initializers for members}1 %2");
     }
 
     bool VisitCXXConstructorDecl(CXXConstructorDecl *constructor) {
@@ -63,6 +64,7 @@ namespace {
       visitor.Visit(constructor->getBody());
 
       // Check each field in the enclosing record
+      std::vector<std::string> missing;
       const CXXRecordDecl *record = constructor->getParent();
       for (CXXRecordDecl::field_iterator field = record->field_begin(), fieldEnd = record->field_end(); field != fieldEnd; field++) {
 
@@ -90,10 +92,22 @@ namespace {
           }
         }
 
-        // Emit an error for fields without a matching initializer
+        // Record all uninitialized fields
         if (initializer == initializerEnd) {
-          instance.getDiagnostics().Report(location, customWarning) << record->getQualifiedNameAsString() << field->getNameAsString();
+          missing.push_back(field->getNameAsString());
         }
+      }
+
+      // Emit a single warning containing all uninitialized fields
+      if (!missing.empty()) {
+        std::string text;
+        int n = missing.size();
+        for (int i = 0; i < n; i++) {
+          if (i && n == 2) text += " and ";
+          else if (i && n > 2) text += i + 1 == n ? ", and " : ", ";
+          text += missing[i];
+        }
+        instance.getDiagnostics().Report(location, customWarning) << record->getQualifiedNameAsString() << n << text;
       }
 
       return true;
